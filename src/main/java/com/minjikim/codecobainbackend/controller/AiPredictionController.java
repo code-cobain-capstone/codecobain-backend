@@ -10,27 +10,18 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 
 @RestController
-@RequestMapping("/api/wafer")
+@RequestMapping("/ai")
 @RequiredArgsConstructor
-public class WaferAnalysisController {
+public class AiPredictionController {
 
     private final AiAnalysisService aiAnalysisService;
 
-    /**
-     * 샘플 이미지 파일을 기준으로 AI 분석 요청을 수행하는 엔드포인트
-     *
-     * @param file 이미지 파일 (예: defect1.jpg)
-     * @return AI 분석 결과 (결함 여부 및 신뢰도)
-     */
-    @PostMapping("/analyze")
-    public AiPredictionResponse analyzeWafer(@RequestParam("file") MultipartFile file) throws IOException {
-        // MultipartFile로 받은 이미지를 분석
-        return aiAnalysisService.analyze(file);
+    @PostMapping("/predict")
+    public AiPredictionResponse predictImage(@RequestParam("file") MultipartFile file) throws IOException {
+        // MultipartFile로 받은 파일을 분석 요청
+        return aiAnalysisService.analyze(file);  // 이미지를 분석하고 결과를 반환
     }
 
-    /**
-     * 잘못된 파일 처리 시 에러 처리 (파일 업로드 중 오류 발생 시)
-     */
     @ExceptionHandler(IOException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public String handleIOException(IOException ex) {
