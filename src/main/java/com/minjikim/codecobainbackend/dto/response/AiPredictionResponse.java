@@ -1,8 +1,17 @@
 package com.minjikim.codecobainbackend.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-public record AiPredictionResponse(
-        @JsonProperty("prediction") String prediction,
-        @JsonProperty("confidence") double confidence
-) { }
+// 연결된 다른 코드 수정 필요
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
+
+public class AiPredictionResponse{
+    private String prediction;
+    private Double confidence;
+}
+
+

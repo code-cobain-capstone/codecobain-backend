@@ -24,23 +24,22 @@ repositories {
 }
 
 dependencies {
-    //implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    //implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-json'
 
-    //implementation 'commons-codec:commons-codec:1.16.0'
-
     implementation 'org.json:json:20231013'
 
-    // mqtt 라이브러리
-    //implementation 'org.springframework.integration:spring-integration-mqtt'
-    //implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
-    implementation 'org.bouncycastle:bcprov-jdk18on:1.77' // 인증서(PKCS8) 파싱용
+    implementation 'software.amazon.awssdk:s3:2.21.3'
+    implementation 'software.amazon.awssdk:auth:2.21.3'
+    implementation 'software.amazon.awssdk:regions:2.21.3'
+
+    implementation 'mysql:mysql-connector-java'
+    implementation 'mysql:mysql-connector-java:8.0.33'
 
     compileOnly 'org.projectlombok:lombok'
-    //runtimeOnly 'com.mysql:mysql-connector-j'
+    runtimeOnly 'com.mysql:mysql-connector-j'
     annotationProcessor 'org.projectlombok:lombok'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

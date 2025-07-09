@@ -1,95 +1,80 @@
 package com.minjikim.codecobainbackend.service;
 
 import com.minjikim.codecobainbackend.dto.response.AiPredictionResponse;
+import com.minjikim.codecobainbackend.exception.AiRequestSendException;
 import com.minjikim.codecobainbackend.exception.AiServerException;
-import com.minjikim.codecobainbackend.exception.FileProcessingException;
+import com.minjikim.codecobainbackend.exception.InvalidAiResponseException;
+
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
+
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class AiAnalysisService {
 
     private final RestTemplate restTemplate;
+    private static final Logger logger = LoggerFactory.getLogger(AiAnalysisService.class);
 
     @Value("${ai.server.url}${ai.endpoint.predict}")
     private String aiUrl;
 
-    @Value("${file.upload-dir}")
-    private String uploadDir;
-
-    private static final Logger logger = LoggerFactory.getLogger(AiAnalysisService.class);
-
-    public AiPredictionResponse analyze(MultipartFile file) {
+    public AiPredictionResponse analyze(String s3Url) {
         try {
-            String filename = file.getOriginalFilename();
-            Path imagePath = Paths.get(uploadDir, filename);
+            // 1. 요청 body 구성
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON); // 또는 application/x-www-form-urlencoded
 
-            // 파일을 서버에 저장
-            file.transferTo(imagePath);
+            Map<String, String> body = Map.of("imageUrl", s3Url);  // AI 서버가 기대하는 파라미터 키에 맞출 것
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(body, headers);
 
-            if (!Files.exists(imagePath)) {
-                logger.warn("이미지 파일이 존재하지 않음: {}", imagePath);
-                throw new FileProcessingException("이미지가 존재하지 않음");
-            }
+            logger.info("AI 서버에 분석 요청 전송: {}", aiUrl);
+            logger.info("요청 파라미터: imageUrl={}", s3Url);
 
-            Resource imageResource = new FileSystemResource(imagePath);
+            // 2. 요청 전송
+            ResponseEntity<AiPredictionResponse> response = restTemplate.exchange(
+                    aiUrl,
+                    HttpMethod.POST,
+                    request,
+                    AiPredictionResponse.class
+            );
 
-            HttpEntity<MultiValueMap<String, Object>> request = createRequest(imageResource);
-            ResponseEntity<AiPredictionResponse> response = sendRequest(request);
-
+            // 3. 응답 유효성 검사
             validateResponse(response);
             logger.info("AI 분석 결과: {}", response.getBody());
 
             return response.getBody();
 
-        } catch (IOException e) {
-            logger.error("파일 처리 중 오류 발생: {}", e.getMessage());
-            throw new AiServerException("파일 처리 실패", e);
         } catch (Exception e) {
-            logger.error("AI 분석 중 오류 발생: {}", e.getMessage());
+            logger.error("AI 분석 요청 중 오류 발생: {}", e.getMessage(), e);
             throw new AiServerException("AI 분석 실패", e);
         }
     }
 
-    private HttpEntity<MultiValueMap<String, Object>> createRequest(Resource image) {
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("file", image);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-        return new HttpEntity<>(body, headers);
-    }
-
-    private ResponseEntity<AiPredictionResponse> sendRequest(HttpEntity<?> request) {
-        return restTemplate.exchange(
-                aiUrl,
-                HttpMethod.POST,
-                request,
-                AiPredictionResponse.class
-        );
-    }
-
-    private void validateResponse(ResponseEntity<?> response) {
+    private void validateResponse(ResponseEntity<AiPredictionResponse> response) {
         if (!response.getStatusCode().is2xxSuccessful()) {
-            throw new AiServerException("AI 서버 응답 오류: " + response.getStatusCode());
+            throw new AiRequestSendException("AI 서버 응답 오류: " + response.getStatusCode());
+        }
+
+        AiPredictionResponse body = response.getBody();
+        if (body == null) {
+            throw new InvalidAiResponseException("AI 응답 body가 null 입니다.");
+        }
+
+        if (body.getPrediction() == null || body.getPrediction().isBlank()) {
+            throw new InvalidAiResponseException("AI 응답 prediction 값이 비어 있습니다.");
+        }
+
+        if (body.getConfidence() == null || body.getConfidence() < 0 || body.getConfidence() > 1) {
+            throw new InvalidAiResponseException("AI 응답 confidence 값이 유효하지 않습니다.");
         }
     }
 }
